@@ -1,0 +1,665 @@
+﻿<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>名古屋雪季旅程手冊</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Babel for JSX transformation -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Custom Styles -->
+  <style>
+    body {
+      background-color: #f8fafc; /* slate-50 */
+      overscroll-behavior-y: none; /* Prevent pull-to-refresh on mobile */
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes fade-in-up {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+      animation: fade-in-up 0.4s ease-out forwards;
+    }
+    @keyframes fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fade-in 0.4s ease-out forwards;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Import Maps for React and Lucide -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "lucide-react": "https://esm.sh/lucide-react@0.292.0"
+      }
+    }
+  </script>
+
+  <!-- Main Application Code -->
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { 
+      Plane, Train, Hotel, Utensils, Mountain, MapPin, 
+      Calendar, Clock, Info, X, ChevronRight, Sun, CloudSnow, 
+      CloudRain, Map, AlertTriangle, Coffee, Camera
+    } from 'lucide-react';
+
+    // --- 模擬數據資料 (Data) ---
+    const tripData = {
+      1: {
+        date: "Day 1",
+        fullDate: "12月25日 (週四)",
+        location: "名古屋 ➝ 信濃大町",
+        weather: { temp: "5°C", condition: "Cloudy", location: "名古屋/松本" },
+        bgGradient: "from-blue-900 to-slate-800",
+        events: [
+          {
+            id: "d1-1",
+            time: "07:35",
+            endTime: "11:05",
+            type: "flight",
+            title: "航班 CI154",
+            location: "桃園機場 (TPE) - 名古屋中部國際機場 (NGO)",
+            description: "抵達名古屋，準備穿越山脈前往信濃大町。",
+            details: {
+              info: "中華航空 CI154",
+              seat: "請參閱電子機票",
+              terminal: "桃園第二航廈",
+              note: "日本入境需填寫 Visit Japan Web"
+            }
+          },
+          {
+            id: "d1-2",
+            time: "12:17",
+            endTime: "12:54",
+            type: "train",
+            title: "名鐵特急 U-SKY",
+            location: "中部國際機場站 - 名鐵名古屋站",
+            description: "搭乘最快速的 U-SKY 前往市區。",
+            details: {
+              info: "名鐵 μ-SKY (Mu-Sky)",
+              ticket: "全車指定席 (需特急券 360日圓)",
+              platform: "通常為 1 號月台"
+            }
+          },
+          {
+            id: "d1-3",
+            time: "13:00",
+            endTime: "15:05",
+            type: "train",
+            title: "特急 Shinano 13號",
+            location: "JR 名古屋站 - JR 松本站",
+            description: "轉乘特急列車前往松本。",
+            details: {
+              info: "Wide View Shinano 13",
+              seat: "建議劃位指定席",
+              food: "建議在名古屋站購買車站便當"
+            }
+          },
+          {
+            id: "d1-4",
+            time: "15:24",
+            endTime: "16:22",
+            type: "train",
+            title: "JR 大糸線",
+            location: "松本站 - 信濃大町站",
+            description: "轉乘普通列車，抵達阿爾卑斯山門戶。",
+            details: {
+              platform: "請依現場顯示為準",
+              note: "松本站轉乘時間充裕"
+            }
+          },
+          {
+            id: "d1-5",
+            time: "16:30",
+            type: "hotel",
+            title: "翠綠亭 景水 (入住)",
+            location: "長野県大町市平2884-13",
+            description: "搭乘飯店接駁車，享受懷石料理與溫泉。",
+            details: {
+              checkIn: "15:00 ~ 19:00",
+              dinner: "飯店內懷石料理",
+              shuttle: "已預約 16:30 車站接送"
+            }
+          }
+        ]
+      },
+      2: {
+        date: "Day 2",
+        fullDate: "12月26日 (週五)",
+        location: "白馬岩岳 (雪地體驗)",
+        weather: { temp: "-3°C", condition: "Snow", location: "白馬村" },
+        bgGradient: "from-slate-100 to-blue-200 text-slate-800", 
+        isLightTheme: true,
+        events: [
+          {
+            id: "d2-1",
+            time: "09:00",
+            type: "activity",
+            title: "前往岩岳滑雪場",
+            location: "白馬岩岳 Mountain Resort",
+            description: "搭乘飯店接駁車，轉乘諾亞 Gondola 纜車上山。",
+            details: {
+              ticket: "需購買 Gondola 往返券",
+              clothing: "請著保暖衣物、防水靴"
+            }
+          },
+          {
+            id: "d2-2",
+            time: "11:30",
+            type: "food",
+            title: "山頂午餐 & Yoo-Hoo! Swing",
+            location: "The City Bakery 白馬 Mountain Harbor",
+            description: "在絕景咖啡廳享用午餐，體驗高空鞦韆。",
+            details: {
+              recommend: "烘焙麵包、熱飲",
+              photo: "必拍 Yoo-Hoo! Swing (彷彿飛向阿爾卑斯)"
+            }
+          },
+          {
+            id: "d2-3",
+            time: "13:45",
+            endTime: "16:00",
+            type: "hike",
+            title: "雪地健行 (Snowshoeing)",
+            location: "山頂餐廳前集合",
+            description: "穿上雪鞋，漫步於寧靜的銀白森林中。",
+            details: {
+              meeting: "13:30 集合",
+              duration: "約 2 小時",
+              guide: "當地嚮導帶領"
+            }
+          },
+          {
+            id: "d2-4",
+            time: "16:00",
+            type: "bus",
+            title: "返回飯店",
+            location: "翠綠亭 景水",
+            description: "活動結束，專車接回飯店休息。",
+            details: {
+              dinner: "懷石料理"
+            }
+          }
+        ]
+      },
+      3: {
+        date: "Day 3",
+        fullDate: "12月27日 (週六)",
+        location: "信濃大町 (自由活動)",
+        weather: { temp: "-1°C", condition: "Cloudy", location: "大町溫泉鄉" },
+        bgGradient: "from-stone-800 to-stone-600",
+        events: [
+          {
+            id: "d3-1",
+            time: "10:00",
+            type: "activity",
+            title: "自由活動時間",
+            location: "大町溫泉鄉 / 白馬",
+            description: "可選擇繼續滑雪，或在溫泉街周邊散策。",
+            details: {
+              option1: "再次前往滑雪場",
+              option2: "溫泉街散步",
+              option3: "提早前往星野 界"
+            }
+          },
+          {
+            id: "d3-2",
+            time: "15:00",
+            type: "hotel",
+            title: "星野集團 界 阿爾卑斯",
+            location: "長野県大町市平2884-26",
+            description: "入住頂級溫泉旅館，體驗「圍爐裏」文化。",
+            details: {
+              highlight: "圍爐裏體驗、信州農家樂演奏",
+              dinner: "季節懷石料理",
+              activity: "早晨體操"
+            }
+          }
+        ]
+      },
+      4: {
+        date: "Day 4",
+        fullDate: "12月28日 (週日)",
+        location: "返回名古屋",
+        weather: { temp: "9°C", condition: "Sun", location: "名古屋市" },
+        bgGradient: "from-indigo-900 to-purple-800",
+        events: [
+          {
+            id: "d4-1",
+            time: "09:50",
+            type: "alert",
+            title: "【關鍵】退房 & 計程車",
+            location: "星野 界 阿爾卑斯 -> 信濃大町站",
+            description: "務必在 09:50 前搭上計程車！錯過需等一小時。",
+            details: {
+              urgent: "目標趕上 10:17 的電車",
+              taxi: "請櫃檯提前預約",
+              warning: "若錯過，抵達名古屋將延後至 15:00"
+            }
+          },
+          {
+            id: "d4-2",
+            time: "10:17",
+            endTime: "14:01",
+            type: "train",
+            title: "鐵道移動 (午餐松本)",
+            location: "信濃大町 -> 松本 -> 名古屋",
+            description: "中途在松本站停留 35 分鐘買午餐。",
+            details: {
+              train1: "10:17 JR大糸線 (11:17 抵達松本)",
+              lunch: "推薦：MIDORI商場的山賊燒、信州牛便當",
+              train2: "11:53 Shinano 10號 (往名古屋)"
+            }
+          },
+          {
+            id: "d4-3",
+            time: "15:30",
+            endTime: "17:00",
+            type: "activity",
+            title: "大須商店街 & 大須觀音",
+            location: "大須觀音通",
+            description: "參拜大須觀音，探索充滿活力的老街。",
+            details: {
+              shop: "愛麗絲夢遊仙境 (Alice on Wednesday)",
+              food: "炸雞、鯛魚燒",
+              temple: "大須觀音 (紅色建築)"
+            }
+          },
+          {
+            id: "d4-4",
+            time: "17:00",
+            type: "camera",
+            title: "榮商圈 & HARBS",
+            location: "久屋大通公園 / HARBS 本店",
+            description: "欣賞電視塔與冬季點燈，外帶水果千層。",
+            details: {
+              spot: "名古屋電視塔 (中部電力 MIRAI TOWER)",
+              dessert: "HARBS 榮本店 (外帶較快)"
+            }
+          },
+          {
+            id: "d4-5",
+            time: "18:30",
+            type: "food",
+            title: "晚餐：鰻魚飯三吃",
+            location: "あつた蓬萊軒 松坂屋店",
+            description: "名古屋必吃美食 Hitsumabushi。",
+            details: {
+              tips: "人多可先抽號碼牌",
+              menu: "鰻魚飯三吃 (Hitsumabushi)"
+            }
+          },
+          {
+            id: "d4-6",
+            time: "20:00",
+            type: "camera",
+            title: "水的宇宙船",
+            location: "Oasis 21 (綠洲21)",
+            description: "完美的夜景 Ending。",
+            details: {
+              view: "頂樓玻璃水池夜間點燈",
+              access: "榮站地下街直結"
+            }
+          }
+        ]
+      },
+      5: {
+        date: "Day 5",
+        fullDate: "12月29日 (週一)",
+        location: "名古屋 ➝ 台灣",
+        weather: { temp: "10°C", condition: "Cloudy", location: "名古屋/桃園" },
+        bgGradient: "from-blue-600 to-blue-400",
+        events: [
+          {
+            id: "d5-1",
+            time: "09:00",
+            type: "shopping",
+            title: "最後採買",
+            location: "名古屋車站周邊",
+            description: "購買蝦餅、小倉吐司夾心餅乾等伴手禮。",
+            details: {
+              shop: "高島屋地下街、名鐵百貨",
+              souvenir: "坂角總本舖 (蝦餅)"
+            }
+          },
+          {
+            id: "d5-2",
+            time: "12:05",
+            endTime: "14:40",
+            type: "flight",
+            title: "航班 CI155",
+            location: "名古屋 (NGO) - 桃園 (TPE)",
+            description: "帶著滿滿的回憶回家。",
+            details: {
+              terminal: "中部國際機場 第一航廈",
+              checkIn: "起飛前 2.5 小時開櫃"
+            }
+          }
+        ]
+      }
+    };
+
+    const mapLocations = [
+      { name: "中部國際機場", query: "Chubu Centrair International Airport" },
+      { name: "JR 名古屋站", query: "Nagoya Station" },
+      { name: "JR 松本站", query: "Matsumoto Station" },
+      { name: "信濃大町站", query: "Shinano-Omachi Station" },
+      { name: "翠綠亭 景水", query: "Ryokutei Keisui" },
+      { name: "白馬岩岳 Mountain Resort", query: "Hakuba Iwatake Mountain Resort" },
+      { name: "The City Bakery 白馬", query: "The City Bakery Hakuba" },
+      { name: "星野集團 界 阿爾卑斯", query: "Hoshino Resorts KAI Alps" },
+      { name: "大須觀音", query: "Osu Kannon" },
+      { name: "HARBS 榮本店", query: "HARBS Sakae Main Store" },
+      { name: "あつた蓬萊軒 松坂屋店", query: "Atsuta Houraiken Matsuzakaya" },
+      { name: "Oasis 21", query: "Oasis 21 Nagoya" },
+    ];
+
+    // --- Components ---
+
+    const WeatherIcon = ({ condition, className }) => {
+      if (condition === "Sun") return <Sun className={`text-yellow-400 ${className}`} />;
+      if (condition === "Snow") return <CloudSnow className={`text-white ${className}`} />;
+      if (condition === "Rain") return <CloudRain className={`text-blue-300 ${className}`} />;
+      return <CloudSnow className={`text-gray-300 ${className}`} />; // Default cloudy
+    };
+
+    const EventIcon = ({ type }) => {
+      const baseClass = "w-5 h-5 text-white";
+      switch (type) {
+        case 'flight': return <Plane className={baseClass} />;
+        case 'train': return <Train className={baseClass} />;
+        case 'hotel': return <Hotel className={baseClass} />;
+        case 'food': return <Utensils className={baseClass} />;
+        case 'hike': return <Mountain className={baseClass} />;
+        case 'activity': return <Calendar className={baseClass} />;
+        case 'bus': return <Train className={baseClass} />; // Use Train/Bus icon
+        case 'alert': return <AlertTriangle className="w-5 h-5 text-red-100" />;
+        case 'camera': return <Camera className={baseClass} />;
+        case 'shopping': return <MapPin className={baseClass} />;
+        default: return <MapPin className={baseClass} />;
+      }
+    };
+
+    const getIconBgColor = (type) => {
+      switch (type) {
+        case 'flight': return 'bg-blue-500';
+        case 'train': return 'bg-emerald-500';
+        case 'hotel': return 'bg-indigo-500';
+        case 'food': return 'bg-orange-500';
+        case 'alert': return 'bg-red-600 animate-pulse';
+        case 'hike': return 'bg-cyan-600';
+        case 'camera': return 'bg-pink-500';
+        default: return 'bg-gray-500';
+      }
+    };
+
+    const Modal = ({ isOpen, onClose, title, details }) => {
+      if (!isOpen) return null;
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+          <div className="relative bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-fade-in-up">
+            <div className="bg-blue-600 p-4 flex justify-between items-center text-white">
+              <h3 className="font-bold text-lg">{title}</h3>
+              <button onClick={onClose}><X size={24} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              {Object.entries(details).map(([key, value]) => (
+                <div key={key} className="border-b border-gray-100 last:border-0 pb-2">
+                  <span className="text-xs font-semibold text-gray-500 uppercase block mb-1">{key}</span>
+                  <p className="text-gray-800 font-medium">{value}</p>
+                </div>
+              ))}
+              <button 
+                onClick={onClose}
+                className="w-full mt-4 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 rounded-lg transition-colors"
+              >
+                關閉
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const TimelineItem = ({ event, isLast, onOpenModal }) => {
+      const isAlert = event.type === 'alert';
+      
+      const openMap = (e) => {
+        e.stopPropagation();
+        const query = encodeURIComponent(event.location);
+        window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
+      };
+
+      return (
+        <div className="relative pl-8 pb-8 group">
+          {/* Connector Line */}
+          {!isLast && (
+            <div className="absolute left-[19px] top-10 bottom-0 w-0.5 bg-gray-200 group-hover:bg-blue-200 transition-colors" />
+          )}
+          
+          {/* Icon Bubble */}
+          <div className={`absolute left-0 top-1 w-10 h-10 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 ${getIconBgColor(event.type)}`}>
+            <EventIcon type={event.type} />
+          </div>
+
+          {/* Content Card */}
+          <div 
+            onClick={() => onOpenModal(event)}
+            className={`ml-6 bg-white rounded-xl p-4 shadow-sm border transition-all active:scale-95 cursor-pointer
+              ${isAlert ? 'border-red-400 shadow-red-100 ring-1 ring-red-100' : 'border-gray-100 hover:shadow-md'}
+            `}
+          >
+            <div className="flex justify-between items-start mb-2">
+              <div className="flex flex-col">
+                <span className={`text-sm font-bold tracking-wide ${isAlert ? 'text-red-600' : 'text-blue-600'}`}>
+                  {event.time} {event.endTime && `- ${event.endTime}`}
+                </span>
+                <h3 className="font-bold text-gray-800 text-lg leading-tight mt-0.5">{event.title}</h3>
+              </div>
+              <button 
+                onClick={openMap}
+                className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full transition-colors"
+              >
+                <MapPin size={18} />
+              </button>
+            </div>
+            
+            <p className="text-gray-600 text-sm mb-3 leading-relaxed">{event.description}</p>
+            
+            <div className="flex items-center text-xs text-gray-400 font-medium">
+              <Info size={12} className="mr-1" />
+              <span>點擊查看詳細資訊</span>
+              <ChevronRight size={12} className="ml-auto" />
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const MapView = () => (
+      <div className="p-6 pb-24 space-y-4 animate-fade-in">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
+          <Map className="w-12 h-12 text-blue-500 mx-auto mb-3" />
+          <h2 className="text-xl font-bold text-gray-800">總行程地圖導引</h2>
+          <p className="text-gray-500 text-sm mt-2">點擊地點可直接開啟 Google Maps 導航</p>
+        </div>
+        
+        <div className="grid gap-3">
+          {mapLocations.map((loc, idx) => (
+            <a 
+              key={idx}
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(loc.query)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center p-4 bg-white rounded-lg border border-gray-100 shadow-sm active:bg-gray-50 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mr-3 shrink-0">
+                <MapPin size={16} />
+              </div>
+              <span className="font-medium text-gray-700">{loc.name}</span>
+              <ChevronRight size={16} className="ml-auto text-gray-300" />
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+
+    function TravelApp() {
+      const [activeDay, setActiveDay] = useState(1);
+      const [modalData, setModalData] = useState(null);
+      const [isModalOpen, setIsModalOpen] = useState(false);
+      const [mounted, setMounted] = useState(false);
+
+      useEffect(() => {
+        setMounted(true);
+      }, []);
+
+      const openModal = (data) => {
+        setModalData(data);
+        setIsModalOpen(true);
+      };
+
+      const currentData = tripData[activeDay];
+      const isMapMode = activeDay === 'map';
+
+      if (!mounted) return null;
+
+      return (
+        <div className="min-h-screen font-sans pb-20 max-w-md mx-auto relative overflow-hidden shadow-2xl bg-slate-50">
+          {/* Top Status Bar Simulator (Visual only) */}
+          <div className={`h-1.5 w-full ${isMapMode ? 'bg-blue-600' : 'bg-transparent absolute top-0 z-20'}`}></div>
+
+          {/* Hero Section */}
+          {!isMapMode && (
+            <div className={`relative pt-12 pb-8 px-6 rounded-b-3xl shadow-lg transition-all duration-500 bg-gradient-to-br ${currentData.bgGradient}`}>
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <span className={`text-sm font-medium opacity-80 uppercase tracking-wider ${currentData.isLightTheme ? 'text-slate-600' : 'text-blue-100'}`}>
+                    {currentData.fullDate}
+                  </span>
+                  <h1 className={`text-3xl font-bold mt-1 ${currentData.isLightTheme ? 'text-slate-800' : 'text-white'}`}>
+                    {currentData.date}
+                  </h1>
+                </div>
+                
+                {/* Weather Widget */}
+                <div className={`flex flex-col items-end ${currentData.isLightTheme ? 'text-slate-700' : 'text-white'}`}>
+                  <div className="flex items-center space-x-2">
+                    <WeatherIcon condition={currentData.weather.condition} className="w-8 h-8" />
+                    <span className="text-3xl font-light">{currentData.weather.temp}</span>
+                  </div>
+                  <span className="text-xs font-medium opacity-80 mt-1">{currentData.weather.location}</span>
+                </div>
+              </div>
+
+              {/* Location Badge */}
+              <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium backdrop-blur-md 
+                ${currentData.isLightTheme ? 'bg-white/60 text-slate-700' : 'bg-white/20 text-white'}`}>
+                <MapPin size={14} className="mr-1" />
+                {currentData.location}
+              </div>
+            </div>
+          )}
+
+          {/* Main Content Area */}
+          <div className="mt-4 px-4 min-h-[60vh]">
+            {isMapMode ? (
+              <MapView />
+            ) : (
+              <div className="animate-fade-in-up">
+                 {/* Timeline Header */}
+                 <div className="flex items-center mb-6 pl-2">
+                    <Clock size={16} className="text-gray-400 mr-2" />
+                    <span className="text-sm text-gray-500 font-medium">行程時間軸</span>
+                 </div>
+                 
+                 {/* Timeline Items */}
+                 {currentData.events.map((event, index) => (
+                   <TimelineItem 
+                     key={event.id} 
+                     event={event} 
+                     isLast={index === currentData.events.length - 1}
+                     onOpenModal={openModal}
+                   />
+                 ))}
+
+                 {/* End of Day Marker */}
+                 <div className="flex justify-center mt-8 mb-24 opacity-50">
+                    <div className="h-2 w-2 rounded-full bg-gray-300"></div>
+                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* Detail Modal */}
+          <Modal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)} 
+            title={modalData?.title} 
+            details={modalData?.details || {}}
+          />
+
+          {/* Bottom Navigation */}
+          <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white/90 backdrop-blur-lg border-t border-gray-200 px-2 py-2 z-40">
+            <div className="flex justify-between items-center overflow-x-auto no-scrollbar">
+              {[1, 2, 3, 4, 5].map((day) => (
+                <button
+                  key={day}
+                  onClick={() => { setActiveDay(day); window.scrollTo(0, 0); }}
+                  className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-300 mx-1 flex-shrink-0
+                    ${activeDay === day 
+                      ? 'bg-blue-600 text-white shadow-lg shadow-blue-200 scale-105' 
+                      : 'text-gray-400 hover:bg-gray-100'}
+                  `}
+                >
+                  <span className="text-xs font-bold mb-0.5">Day</span>
+                  <span className={`text-lg font-bold leading-none ${activeDay === day ? 'text-white' : 'text-gray-600'}`}>{day}</span>
+                </button>
+              ))}
+              
+              <div className="w-px h-8 bg-gray-200 mx-1 flex-shrink-0"></div>
+
+              <button
+                onClick={() => { setActiveDay('map'); window.scrollTo(0, 0); }}
+                className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-300 mx-1 flex-shrink-0
+                  ${activeDay === 'map' 
+                    ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' 
+                    : 'text-gray-400 hover:bg-gray-100'}
+                `}
+              >
+                <Map size={20} className="mb-0.5" />
+                <span className="text-[10px] font-bold">地圖</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = createRoot(document.getElementById('root'));
+    root.render(<TravelApp />);
+  </script>
+</body>
+</html>
