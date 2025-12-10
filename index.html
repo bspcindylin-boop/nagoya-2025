@@ -500,6 +500,11 @@
 
     const MapView = () => (
       <div className="p-6 pb-24 space-y-4 animate-fade-in">
+        <div className="mb-6 text-center px-4">
+             <h1 className="text-2xl font-black text-gray-800 tracking-widest bg-white/90 block w-full py-3 rounded-xl shadow-md">
+                信濃大町 白雪聖誕5日遊
+            </h1>
+        </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
           <Map className="w-12 h-12 text-blue-500 mx-auto mb-3" />
           <h2 className="text-xl font-bold text-gray-800">總行程地圖導引</h2>
@@ -553,8 +558,16 @@
 
           {/* Hero Section */}
           {!isMapMode && (
-            <div className={`relative pt-12 pb-8 px-6 rounded-b-3xl shadow-lg transition-all duration-500 bg-gradient-to-br ${currentData.bgGradient}`}>
-              <div className="flex justify-between items-start mb-6">
+            <div className={`relative pt-24 pb-8 px-6 rounded-b-3xl shadow-lg transition-all duration-500 bg-gradient-to-br ${currentData.bgGradient}`}>
+              
+              {/* Added Trip Title Here */}
+              <div className="absolute top-6 left-0 w-full text-center z-10 px-4">
+                <h1 className={`text-2xl font-black tracking-widest w-full ${currentData.isLightTheme ? 'text-slate-800' : 'text-white drop-shadow-lg'}`}>
+                    信濃大町 白雪聖誕5日遊
+                </h1>
+              </div>
+
+              <div className="flex justify-between items-start mb-6 mt-2">
                 <div>
                   <span className={`text-sm font-medium opacity-80 uppercase tracking-wider ${currentData.isLightTheme ? 'text-slate-600' : 'text-blue-100'}`}>
                     {currentData.fullDate}
