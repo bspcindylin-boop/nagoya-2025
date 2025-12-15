@@ -38,6 +38,17 @@
     .animate-fade-in {
       animation: fade-in 0.4s ease-out forwards;
     }
+    /* Checkbox custom style */
+    .custom-checkbox:checked {
+      background-color: #3b82f6;
+      border-color: #3b82f6;
+    }
+    /* Remove number input arrows */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
   </style>
 </head>
 <body>
@@ -56,12 +67,14 @@
 
   <!-- Main Application Code -->
   <script type="text/babel" data-type="module">
-    import React, { useState, useEffect } from 'react';
+    import React, { useState, useEffect, useRef } from 'react';
     import { createRoot } from 'react-dom/client';
     import { 
       Plane, Train, Hotel, Utensils, Mountain, MapPin, 
       Calendar, Clock, Info, X, ChevronRight, Sun, CloudSnow, 
-      CloudRain, Map, AlertTriangle, Coffee, Camera
+      CloudRain, Map, AlertTriangle, Coffee, Camera,
+      ShoppingBag, Plus, Trash2, Check, Pencil, Save,
+      Calculator, ArrowRight, DollarSign, Receipt
     } from 'lucide-react';
 
     // --- 模擬數據資料 (Data) ---
@@ -357,6 +370,16 @@
             }
           }
         ]
+      },
+      // Shopping Mode Configuration (Custom)
+      shopping: {
+        date: "Shopping & Expenses",
+        fullDate: "購物與花費",
+        location: "必買與記帳",
+        weather: { temp: "-", condition: "Sun", location: "名古屋" },
+        bgGradient: "from-pink-500 to-rose-400",
+        isLightTheme: false,
+        events: []
       }
     };
 
@@ -531,6 +554,405 @@
       </div>
     );
 
+    // --- Shopping List Component ---
+    const ShoppingListView = () => {
+      const [activeTab, setActiveTab] = useState('list'); // 'list' or 'expenses'
+      
+      // Shopping List State
+      const [items, setItems] = useState([]);
+      const [inputValue, setInputValue] = useState("");
+      const [editingId, setEditingId] = useState(null);
+      const [editValue, setEditValue] = useState("");
+      
+      // Expense Tracker State
+      const [expenses, setExpenses] = useState([]);
+      const [expenseName, setExpenseName] = useState("");
+      const [expenseAmount, setExpenseAmount] = useState("");
+      const [expenseCurrency, setExpenseCurrency] = useState("JPY");
+      const [editingExpenseId, setEditingExpenseId] = useState(null);
+      const [editExpenseData, setEditExpenseData] = useState({ name: "", amount: "", currency: "JPY" });
+
+      // Calculator State
+      const [jpyAmount, setJpyAmount] = useState("");
+      const [rate, setRate] = useState(0.22); // Default rate
+      
+      const inputRef = useRef(null);
+
+      // Load Shopping List
+      useEffect(() => {
+        const saved = localStorage.getItem('shoppingList');
+        if (saved) {
+          try {
+            setItems(JSON.parse(saved));
+          } catch (e) { console.error("Error parsing shopping list", e); }
+        } else {
+          setItems([
+            { id: 1, text: "坂角總本舖 蝦餅", completed: false },
+            { id: 2, text: "小倉吐司夾心餅乾", completed: false },
+            { id: 3, text: "青蛙饅頭", completed: false },
+          ]);
+        }
+      }, []);
+
+      // Load Expenses
+      useEffect(() => {
+        const savedExpenses = localStorage.getItem('expenseList');
+        if (savedExpenses) {
+          try {
+            setExpenses(JSON.parse(savedExpenses));
+          } catch (e) { console.error("Error parsing expense list", e); }
+        }
+      }, []);
+
+      // Save Shopping List
+      useEffect(() => {
+        localStorage.setItem('shoppingList', JSON.stringify(items));
+      }, [items]);
+
+      // Save Expenses
+      useEffect(() => {
+        localStorage.setItem('expenseList', JSON.stringify(expenses));
+      }, [expenses]);
+
+      // --- Shopping List Handlers ---
+      const addItem = (e) => {
+        e.preventDefault();
+        if (!inputValue.trim()) return;
+        setItems([...items, { id: Date.now(), text: inputValue.trim(), completed: false }]);
+        setInputValue("");
+      };
+
+      const toggleItem = (id) => {
+        setItems(items.map(item => 
+          item.id === id ? { ...item, completed: !item.completed } : item
+        ));
+      };
+
+      const deleteItem = (id) => {
+        if(confirm('確定要刪除嗎？')) {
+           setItems(items.filter(item => item.id !== id));
+        }
+      };
+
+      const startEdit = (item) => {
+        setEditingId(item.id);
+        setEditValue(item.text);
+      };
+
+      const saveEdit = (id) => {
+        if (!editValue.trim()) return;
+        setItems(items.map(item => 
+          item.id === id ? { ...item, text: editValue.trim() } : item
+        ));
+        setEditingId(null);
+      };
+
+      // --- Expense Tracker Handlers ---
+      const addExpense = (e) => {
+        e.preventDefault();
+        if (!expenseName.trim() || !expenseAmount) return;
+        setExpenses([...expenses, { 
+            id: Date.now(), 
+            name: expenseName.trim(), 
+            amount: parseFloat(expenseAmount), 
+            currency: expenseCurrency 
+        }]);
+        setExpenseName("");
+        setExpenseAmount("");
+      };
+
+      const deleteExpense = (id) => {
+        if(confirm('確定要刪除此花費嗎？')) {
+           setExpenses(expenses.filter(item => item.id !== id));
+        }
+      };
+
+      const startEditExpense = (item) => {
+          setEditingExpenseId(item.id);
+          setEditExpenseData({ name: item.name, amount: item.amount, currency: item.currency });
+      };
+
+      const saveEditExpense = (id) => {
+          if (!editExpenseData.name.trim() || !editExpenseData.amount) return;
+          setExpenses(expenses.map(item => 
+            item.id === id ? { ...item, name: editExpenseData.name, amount: parseFloat(editExpenseData.amount), currency: editExpenseData.currency } : item
+          ));
+          setEditingExpenseId(null);
+      };
+
+      const calculatedTwd = jpyAmount ? (parseFloat(jpyAmount) * rate).toFixed(0) : 0;
+      
+      // Calculate Totals
+      const totalJPY = expenses.filter(e => e.currency === 'JPY').reduce((acc, curr) => acc + curr.amount, 0);
+      const totalTWD = expenses.filter(e => e.currency === 'TWD').reduce((acc, curr) => acc + curr.amount, 0);
+
+      return (
+        <div className="px-4 pb-24 animate-fade-in">
+           
+           {/* Currency Calculator (Always Visible) */}
+           <div className="bg-white rounded-xl shadow-sm border border-pink-100 p-4 mb-4">
+              <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                 <Calculator className="w-5 h-5 mr-2 text-pink-500" />
+                 匯率換算機
+              </h2>
+              <div className="flex gap-4 items-end">
+                <div className="flex-1">
+                   <label className="text-xs text-gray-500 block mb-1">日幣 (JPY)</label>
+                   <input 
+                     type="number" 
+                     value={jpyAmount}
+                     onChange={(e) => setJpyAmount(e.target.value)}
+                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-400 placeholder-gray-300"
+                     placeholder="¥"
+                   />
+                </div>
+                <div className="pb-3 text-gray-400">
+                    <ArrowRight size={20} />
+                </div>
+                <div className="flex-1">
+                   <label className="text-xs text-gray-500 block mb-1">約台幣 (TWD)</label>
+                   <div className="w-full bg-gray-50 border border-gray-100 rounded-lg px-3 py-2 text-lg font-bold text-pink-600">
+                     ${calculatedTwd}
+                   </div>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center gap-2 justify-end">
+                 <label className="text-xs text-gray-400">匯率 (可修改):</label>
+                 <input 
+                   type="number" 
+                   step="0.001"
+                   value={rate}
+                   onChange={(e) => setRate(e.target.value)}
+                   className="w-16 border-b border-gray-200 text-sm text-center focus:outline-none focus:border-pink-400 text-gray-500 font-medium"
+                 />
+              </div>
+           </div>
+
+           {/* Tab Switcher */}
+           <div className="flex mb-4 bg-gray-100 p-1 rounded-xl">
+               <button 
+                 onClick={() => setActiveTab('list')}
+                 className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'list' ? 'bg-white text-pink-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+               >
+                 待買清單
+               </button>
+               <button 
+                 onClick={() => setActiveTab('expenses')}
+                 className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'expenses' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+               >
+                 花費紀錄
+               </button>
+           </div>
+
+           {/* --- SHOPPING LIST TAB --- */}
+           {activeTab === 'list' && (
+             <div className="animate-fade-in">
+               {/* Add New Item Card */}
+               <div className="bg-white rounded-xl shadow-sm border border-pink-100 p-4 mb-6">
+                  <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                     <ShoppingBag className="w-5 h-5 mr-2 text-pink-500" />
+                     新增購物項目
+                  </h2>
+                  <form onSubmit={addItem} className="flex gap-2">
+                     <input 
+                       ref={inputRef}
+                       type="text" 
+                       value={inputValue}
+                       onChange={(e) => setInputValue(e.target.value)}
+                       placeholder="輸入商品名稱..."
+                       className="flex-1 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-pink-400"
+                     />
+                     <button 
+                       type="submit"
+                       className="bg-pink-500 text-white rounded-lg px-4 py-2 font-medium hover:bg-pink-600 transition-colors flex items-center justify-center"
+                     >
+                       <Plus size={20} />
+                     </button>
+                  </form>
+               </div>
+
+               {/* List Items */}
+               <div className="space-y-3">
+                  {items.length === 0 && (
+                    <div className="text-center text-gray-400 py-8">
+                      目前清單是空的，快去新增一些必買好物吧！
+                    </div>
+                  )}
+                  {items.map(item => (
+                    <div 
+                      key={item.id} 
+                      className={`bg-white rounded-xl p-4 shadow-sm border transition-all ${item.completed ? 'bg-gray-50 border-gray-100' : 'border-gray-100'}`}
+                    >
+                      {editingId === item.id ? (
+                        <div className="flex gap-2">
+                           <input 
+                             type="text" 
+                             value={editValue}
+                             onChange={(e) => setEditValue(e.target.value)}
+                             className="flex-1 border border-pink-200 rounded px-2 py-1"
+                             autoFocus
+                           />
+                           <button onClick={() => saveEdit(item.id)} className="text-green-500 p-1"><Save size={18} /></button>
+                           <button onClick={() => setEditingId(null)} className="text-gray-400 p-1"><X size={18} /></button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-3">
+                           <button 
+                             onClick={() => toggleItem(item.id)}
+                             className={`w-6 h-6 rounded-md border flex items-center justify-center transition-colors ${item.completed ? 'bg-pink-500 border-pink-500 text-white' : 'border-gray-300 text-transparent hover:border-pink-400'}`}
+                           >
+                             <Check size={14} strokeWidth={4} />
+                           </button>
+                           
+                           <span 
+                             onClick={() => toggleItem(item.id)}
+                             className={`flex-1 font-medium text-lg cursor-pointer transition-all ${item.completed ? 'text-gray-400 line-through' : 'text-gray-800'}`}
+                           >
+                             {item.text}
+                           </span>
+
+                           <div className="flex gap-1">
+                              <button onClick={() => startEdit(item)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full">
+                                <Pencil size={16} />
+                              </button>
+                              <button onClick={() => deleteItem(item.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full">
+                                <Trash2 size={16} />
+                              </button>
+                           </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+               </div>
+             </div>
+           )}
+
+           {/* --- EXPENSE TRACKER TAB --- */}
+           {activeTab === 'expenses' && (
+             <div className="animate-fade-in">
+                {/* Add Expense Card */}
+                <div className="bg-white rounded-xl shadow-sm border border-blue-100 p-4 mb-6">
+                   <h2 className="text-lg font-bold text-gray-800 mb-3 flex items-center">
+                      <Receipt className="w-5 h-5 mr-2 text-blue-500" />
+                      新增花費
+                   </h2>
+                   <form onSubmit={addExpense} className="flex flex-col gap-2">
+                      <input 
+                        type="text" 
+                        value={expenseName}
+                        onChange={(e) => setExpenseName(e.target.value)}
+                        placeholder="花費項目 (例如: 午餐, 車票...)"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                      <div className="flex gap-2">
+                          <input 
+                            type="number" 
+                            value={expenseAmount}
+                            onChange={(e) => setExpenseAmount(e.target.value)}
+                            placeholder="金額"
+                            className="flex-1 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          />
+                          <select 
+                            value={expenseCurrency}
+                            onChange={(e) => setExpenseCurrency(e.target.value)}
+                            className="border border-gray-200 rounded-lg px-2 bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          >
+                             <option value="JPY">JPY</option>
+                             <option value="TWD">TWD</option>
+                          </select>
+                          <button 
+                            type="submit"
+                            className="bg-blue-500 text-white rounded-lg px-4 py-2 font-medium hover:bg-blue-600 transition-colors"
+                          >
+                            <Plus size={20} />
+                          </button>
+                      </div>
+                   </form>
+                </div>
+
+                {/* Totals Summary */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                    <div className="bg-white border border-orange-100 rounded-xl p-3 shadow-sm">
+                        <span className="text-xs text-gray-500 uppercase font-bold">總日幣花費</span>
+                        <div className="text-xl font-bold text-orange-500">¥{totalJPY.toLocaleString()}</div>
+                    </div>
+                    <div className="bg-white border border-green-100 rounded-xl p-3 shadow-sm">
+                        <span className="text-xs text-gray-500 uppercase font-bold">總台幣花費</span>
+                        <div className="text-xl font-bold text-green-500">${totalTWD.toLocaleString()}</div>
+                    </div>
+                </div>
+
+                {/* Expense List */}
+                <div className="space-y-3">
+                   {expenses.length === 0 && (
+                     <div className="text-center text-gray-400 py-8">
+                       還沒有記帳紀錄喔。
+                     </div>
+                   )}
+                   {expenses.map(item => (
+                     <div 
+                       key={item.id} 
+                       className="bg-white rounded-xl p-3 shadow-sm border border-gray-100"
+                     >
+                       {editingExpenseId === item.id ? (
+                         <div className="flex flex-col gap-2">
+                            <input 
+                              type="text" 
+                              value={editExpenseData.name}
+                              onChange={(e) => setEditExpenseData({...editExpenseData, name: e.target.value})}
+                              className="border border-blue-200 rounded px-2 py-1"
+                              placeholder="項目名稱"
+                            />
+                            <div className="flex gap-2">
+                                <input 
+                                  type="number" 
+                                  value={editExpenseData.amount}
+                                  onChange={(e) => setEditExpenseData({...editExpenseData, amount: e.target.value})}
+                                  className="flex-1 border border-blue-200 rounded px-2 py-1"
+                                  placeholder="金額"
+                                />
+                                <select 
+                                  value={editExpenseData.currency}
+                                  onChange={(e) => setEditExpenseData({...editExpenseData, currency: e.target.value})}
+                                  className="border border-blue-200 rounded px-1"
+                                >
+                                   <option value="JPY">JPY</option>
+                                   <option value="TWD">TWD</option>
+                                </select>
+                            </div>
+                            <div className="flex gap-2 mt-1">
+                                <button onClick={() => saveEditExpense(item.id)} className="flex-1 bg-green-500 text-white rounded py-1 text-sm font-bold">儲存</button>
+                                <button onClick={() => setEditingExpenseId(null)} className="flex-1 bg-gray-200 text-gray-600 rounded py-1 text-sm font-bold">取消</button>
+                            </div>
+                         </div>
+                       ) : (
+                         <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                               <div className="text-gray-800 font-medium text-lg">{item.name}</div>
+                               <div className={`text-sm font-bold ${item.currency === 'JPY' ? 'text-orange-500' : 'text-green-600'}`}>
+                                  {item.currency === 'JPY' ? '¥' : '$'} {item.amount.toLocaleString()}
+                               </div>
+                            </div>
+                            <div className="flex gap-1">
+                               <button onClick={() => startEditExpense(item)} className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-full">
+                                 <Pencil size={16} />
+                               </button>
+                               <button onClick={() => deleteExpense(item.id)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full">
+                                 <Trash2 size={16} />
+                               </button>
+                            </div>
+                         </div>
+                       )}
+                     </div>
+                   ))}
+                </div>
+             </div>
+           )}
+
+        </div>
+      );
+    };
+
     function TravelApp() {
       const [activeDay, setActiveDay] = useState(1);
       const [modalData, setModalData] = useState(null);
@@ -546,17 +968,18 @@
         setIsModalOpen(true);
       };
 
-      const currentData = tripData[activeDay];
+      const currentData = tripData[activeDay] || tripData['shopping']; // Fallback for shopping mode
       const isMapMode = activeDay === 'map';
+      const isShoppingMode = activeDay === 'shopping';
 
       if (!mounted) return null;
 
       return (
         <div className="min-h-screen font-sans pb-20 max-w-md mx-auto relative overflow-hidden shadow-2xl bg-slate-50">
           {/* Top Status Bar Simulator (Visual only) */}
-          <div className={`h-1.5 w-full ${isMapMode ? 'bg-blue-600' : 'bg-transparent absolute top-0 z-20'}`}></div>
+          <div className={`h-1.5 w-full ${isMapMode ? 'bg-blue-600' : isShoppingMode ? 'bg-pink-500' : 'bg-transparent absolute top-0 z-20'}`}></div>
 
-          {/* Hero Section */}
+          {/* Hero Section (Visible for Day 1-5 and Shopping, hidden for Map) */}
           {!isMapMode && (
             <div className={`relative pt-24 pb-8 px-6 rounded-b-3xl shadow-lg transition-all duration-500 bg-gradient-to-br ${currentData.bgGradient}`}>
               
@@ -577,7 +1000,7 @@
                   </h1>
                 </div>
                 
-                {/* Weather Widget */}
+                {/* Weather Widget (Hidden on Shopping List if data is empty or generic) */}
                 <div className={`flex flex-col items-end ${currentData.isLightTheme ? 'text-slate-700' : 'text-white'}`}>
                   <div className="flex items-center space-x-2">
                     <WeatherIcon condition={currentData.weather.condition} className="w-8 h-8" />
@@ -600,6 +1023,8 @@
           <div className="mt-4 px-4 min-h-[60vh]">
             {isMapMode ? (
               <MapView />
+            ) : isShoppingMode ? (
+              <ShoppingListView />
             ) : (
               <div className="animate-fade-in-up">
                  {/* Timeline Header */}
@@ -654,6 +1079,22 @@
               
               <div className="w-px h-8 bg-gray-200 mx-1 flex-shrink-0"></div>
 
+              {/* Shopping List Button */}
+              <button
+                onClick={() => { setActiveDay('shopping'); window.scrollTo(0, 0); }}
+                className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-300 mx-1 flex-shrink-0
+                  ${activeDay === 'shopping' 
+                    ? 'bg-pink-500 text-white shadow-lg shadow-pink-200' 
+                    : 'text-gray-400 hover:bg-gray-100'}
+                `}
+              >
+                <ShoppingBag size={20} className="mb-0.5" />
+                <span className="text-[10px] font-bold">清單</span>
+              </button>
+
+              <div className="w-px h-8 bg-gray-200 mx-1 flex-shrink-0"></div>
+
+              {/* Map Button */}
               <button
                 onClick={() => { setActiveDay('map'); window.scrollTo(0, 0); }}
                 className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl transition-all duration-300 mx-1 flex-shrink-0
